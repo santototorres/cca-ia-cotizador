@@ -1,6 +1,5 @@
 FROM php:8.3-fpm-alpine AS base
 
-# Instalar dependencias del sistema
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -13,7 +12,6 @@ RUN apk add --no-cache \
     git \
     unzip
 
-# Instalar extensiones PHP (sin gd para evitar errores en Alpine)
 RUN docker-php-ext-install \
     pdo \
     pdo_pgsql \
@@ -24,33 +22,22 @@ RUN docker-php-ext-install \
     pcntl \
     bcmath
 
-# Instalar Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias PHP (sin dev)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-# Permisos correctos
-RUN chown -R www-data:www-data /var/www/html \
- && chmod -R 755 /var/www/html/storage \
- && chmod -R 755 /var/www/html/bootstrap/cache
+RUN mkdir -p /var/run/php-fpm \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Copiar configuracion de Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
-
-# Copiar configuracion de Supervisor
 COPY supervisord.conf /etc/supervisord.conf
-
-# Optimizar Laravel para produccion
-RUN php artisan config:cache \
- && php artisan route:cache \
- && php artisan view:cache
 
 EXPOSE 8080
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["/bin/sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && /usr/bin/supervisord -c /etc/supervisord.conf"]
