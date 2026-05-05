@@ -5,9 +5,6 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     curl \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
     libzip-dev \
     oniguruma-dev \
     libxml2-dev \
@@ -16,22 +13,16 @@ RUN apk add --no-cache \
     git \
     unzip
 
-# Instalar extensiones PHP
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
-        pdo \
-        pdo_pgsql \
-        pgsql \
-        mbstring \
-        openssl \
-        tokenizer \
-        xml \
-        ctype \
-        bcmath \
-        zip \
-        gd \
-        intl \
-        pcntl
+# Instalar extensiones PHP (sin gd para evitar errores en Alpine)
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    zip \
+    intl \
+    pcntl \
+    bcmath
 
 # Instalar Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
@@ -46,19 +37,19 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
 
 # Permisos correctos
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+ && chmod -R 755 /var/www/html/storage \
+ && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Copiar configuración de Nginx
+# Copiar configuracion de Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copiar configuración de Supervisor
+# Copiar configuracion de Supervisor
 COPY supervisord.conf /etc/supervisord.conf
 
-# Optimizar Laravel para producción
+# Optimizar Laravel para produccion
 RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+ && php artisan route:cache \
+ && php artisan view:cache
 
 EXPOSE 8080
 
